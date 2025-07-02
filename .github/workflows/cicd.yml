@@ -1,0 +1,92 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    env:
+      ECR_REPO_SERVICE1: service1-repo
+      ECR_REPO_SERVICE2: service2-repo
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Build and scan service1
+      - name: Build Docker image for service1
+        run: |
+          docker build -t $ECR_REPO_SERVICE1:${{ github.sha }} ./service1
+
+      - name: Scan service1 image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: $ECR_REPO_SERVICE1:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+
+      # Build and scan service2
+      - name: Build Docker image for service2
+        run: |
+          docker build -t $ECR_REPO_SERVICE2:${{ github.sha }} ./service2
+
+      - name: Scan service2 image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: $ECR_REPO_SERVICE2:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+
+      # Tag and push service1
+      - name: Tag and push service1 image to ECR
+        run: |
+          ECR_URI_1=$(aws ecr describe-repositories --repository-names $ECR_REPO_SERVICE1 --query "repositories[0].repositoryUri" --output text)
+          docker tag $ECR_REPO_SERVICE1:${{ github.sha }} $ECR_URI_1:${{ github.sha }}
+          docker push $ECR_URI_1:${{ github.sha }}
+          echo "SERVICE1_IMAGE=$ECR_URI_1:${{ github.sha }}" >> $GITHUB_ENV
+
+      # Tag and push service2
+      - name: Tag and push service2 image to ECR
+        run: |
+          ECR_URI_2=$(aws ecr describe-repositories --repository-names $ECR_REPO_SERVICE2 --query "repositories[0].repositoryUri" --output text)
+          docker tag $ECR_REPO_SERVICE2:${{ github.sha }} $ECR_URI_2:${{ github.sha }}
+          docker push $ECR_URI_2:${{ github.sha }}
+          echo "SERVICE2_IMAGE=$ECR_URI_2:${{ github.sha }}" >> $GITHUB_ENV
+
+  deploy:
+    needs: build-scan-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update ECS service for service1
+        run: |
+          aws ecs update-service --cluster your-cluster-name --service service1-service-name \
+            --force-new-deployment \
+            --region $AWS_REGION
+
+      - name: Update ECS service for service2
+        run: |
+          aws ecs update-service --cluster your-cluster-name --service service2-service-name \
+            --force-new-deployment \
+            --region $AWS_REGION
