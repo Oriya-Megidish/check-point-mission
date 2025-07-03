@@ -414,11 +414,12 @@ module "my_alb" {
   cpu                = 256
   memory             = 512
   region             = var.aws_region
-
+  log_group_name     = aws_cloudwatch_log_group.ecs_rest_log_group.name
+  log_stream_prefix  = "rest-service"
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.ecs_rest_task_sg.security_group_id]
   target_group_arn = module.my_alb.target_group_arn
-  depends_on = [aws_ecs_cluster.main]
+  depends_on = [aws_ecs_cluster.main, aws_cloudwatch_log_group.ecs_rest_log_group]
 }
 
   module "sql_listener_ecs_service" {
@@ -435,9 +436,10 @@ module "my_alb" {
   cpu                = 256
   memory             = 512
   region             = var.aws_region
-
+  log_group_name     = aws_cloudwatch_log_group.ecs_sql_listener_log_group.name
+  log_stream_prefix  = "sql-listener" 
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.ecs_sql_listener_task_sg.security_group_id]
-  depends_on = [aws_ecs_cluster.main]
+  depends_on = [aws_ecs_cluster.main, aws_cloudwatch_log_group.ecs_sql_listener_log_group]
 }
 
