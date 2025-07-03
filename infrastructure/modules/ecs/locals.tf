@@ -14,8 +14,8 @@
         for key, value in var.container_env_vars : {
           name  = key
           value = value
-        }
-      ],
+}
+],
 
       logConfiguration = {
         logDriver = "awslogs",
