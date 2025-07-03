@@ -34,6 +34,15 @@
     ssm_get = [
       "ssm:GetParameter"
       ]
+    kms_decrypt = [
+      "kms:Decrypt"
+]
+    kms_encrypt = [
+      "kms:Encrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+]
     }
 
   actions = concat(
