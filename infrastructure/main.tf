@@ -126,7 +126,8 @@ module "ecs_execution_role" {
 ]
   depends_on = [
     module.rest_service_ecr_repository,
-    module.sql_listener_ecr_repository
+    module.sql_listener_ecr_repository,
+    aws_iam_role.pre_ecs_execution_role
 ]
 }
 
