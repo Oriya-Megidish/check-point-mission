@@ -413,8 +413,6 @@ module "my_alb" {
   container_port     = 5000
   cpu                = 256
   memory             = 512
-  log_group_name     = aws_cloudwatch_log_group.ecs_rest_log_group.name
-  log_stream_prefix  = "rest-service"
   region             = var.aws_region
 
   subnet_ids         = module.network.private_subnet_ids
@@ -436,8 +434,6 @@ module "my_alb" {
   container_port     = 9000
   cpu                = 256
   memory             = 512
-  log_group_name     = aws_cloudwatch_log_group.ecs_sql_listener_log_group.name
-  log_stream_prefix  = "sql-listener" 
   region             = var.aws_region
 
   subnet_ids         = module.network.private_subnet_ids
