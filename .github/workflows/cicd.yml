@@ -152,10 +152,10 @@ jobs:
 
       - name: Deploy Rest service
         run: |
-          aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_SERVICE_NAME --force-new-deployment
+          aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_NAME --force-new-deployment
         env:
           CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
-          REST_SERVICE_SERVICE_NAME: ${{ env.REST_SERVICE_SERVICE_NAME }}
+          REST_SERVICE_NAME: ${{ env.REST_SERVICE_NAME }}
           
       - name: Deploy Sql listener
         run: |
