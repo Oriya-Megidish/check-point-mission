@@ -325,17 +325,6 @@ resource "aws_security_group_rule" "ecs_from_elb_ingress" {
   source_security_group_id = module.elb_sg.security_group_id
   }
 
-resource "aws_vpc_endpoint" "route53_resolver" {
-  vpc_id            = module.network.vpc_id
-  service_name      = "com.amazonaws.${var.aws_region}.route53resolver"
-  vpc_endpoint_type = "Interface"
-  subnet_ids        = module.network.private_subnet_ids
-
-  security_group_ids = [module.endpoints_sg.security_group_id]
-
-  private_dns_enabled = true
-}
-
 resource "aws_vpc_endpoint" "ecr_api" {
   vpc_id       = module.network.vpc_id
   service_name = "com.amazonaws.${var.aws_region}.ecr.api"
