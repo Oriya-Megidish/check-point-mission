@@ -38,6 +38,14 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: v1.4.6  
+          
+      - name: Cache Terraform providers and modules
+        uses: actions/cache@v3
+        with:
+         path: infrastructure/.terraform
+         key: ${{ runner.os }}-terraform-${{ hashFiles('infrastructure/**/*.tf') }}
+         restore-keys: |
+           ${{ runner.os }}-terraform-
 
       - name: Terraform Init
         working-directory: infrastructure/
