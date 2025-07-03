@@ -26,6 +26,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
@@ -42,7 +48,7 @@ jobs:
         run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}" -chdir=./infrastructure
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfpl
+        run: terraform apply -auto-approve tfplan
         
   tests:
     name: Run Tests on Microservices
@@ -106,6 +112,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
@@ -140,7 +153,13 @@ jobs:
       - name: Deploy Rest service
         run: |
           aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_SERVICE_NAME --force-new-deployment
-
+        env:
+          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
+          REST_SERVICE_SERVICE_NAME: ${{ env.REST_SERVICE_SERVICE_NAME }}
+          
       - name: Deploy Sql listener
         run: |
           aws ecs update-service --cluster $CLUSTER_NAME --service $SQL_LISTENER_SERVICE_NAME --force-new-deployment
+        env:
+          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
+          SQL_LISTENER_SERVICE_NAME: ${{ env.SQL_LISTENER_SERVICE_NAME }}
