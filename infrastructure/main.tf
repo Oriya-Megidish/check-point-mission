@@ -20,15 +20,20 @@ resource "aws_ssm_parameter" "my_parameter" {
   name        = local.parameter_path      
   description = "Token for my application"
   type        = "SecureString"              
-  value       = "var.token_parameter"
+  value       = var.token_parameter
   }
 
-module "aws_ecr_repository" {
+module "rest_service_ecr_repository" {
   source              = "./modules/ecr"
-  repository_name     = "${var.owner}-repo"
+  repository_name     = local.rest_repo_name
   image_tag_mutability = "MUTABLE"
 }
 
+module "sql_listener_ecr_repository" {
+  source              = "./modules/ecr"
+  repository_name     = local.sql_listener_repo_name
+  image_tag_mutability = "MUTABLE"
+}
 
 module "ecs_sql_listener_task_role" {
   source             = "./modules/iam_role" 
@@ -84,10 +89,16 @@ module "ecs_execution_role" {
   ]
 
   resources = [
-    "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.aws_ecr_repository.repository_name}",
+    "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.rest_service_ecr_repository.repository_name}",
+    "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.sql_listener_ecr_repository.repository_name}",
     "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_rest_log_group.name}",
     "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_sql_listener_log_group.name}"
-    ]
+
+]
+  depends_on = [
+    module.rest_service_ecr_repository,
+    module.sql_listener_ecr_repository
+]
 }
 
 resource "aws_iam_role_policy" "extra_policy" {
@@ -241,11 +252,11 @@ module "my_alb" {
 
   cluster_name       = aws_ecs_cluster.main.name
   service_name       = "rest_ecs_service"
-  task_family        = "${var.owner}-task"
+  task_family        = "${var.owner}-rest-service-task"
   execution_role_arn = module.ecs_execution_role.role_arn
   task_role_arn      = module.ecs_rest_service_task_role.role_arn
   container_name     = "rest-app"
-  container_image    = "${local.rest_service_repo_uri}:${local.rest_version}"
+  container_image    = "${var.account_id}.dkr.${var.aws_region}.amazonaws.com/${local.rest_repo_name}:${local.rest_version}"
   container_port     = 5000
   cpu                = 256
   memory             = 512
@@ -264,11 +275,11 @@ module "my_alb" {
 
   cluster_name       = aws_ecs_cluster.main.name
   service_name       = "sql_listener_ecs_service"
-  task_family        = "${var.owner}-task"
+  task_family        = "${var.owner}-sql-listener-task"
   execution_role_arn = module.ecs_execution_role.role_arn
   task_role_arn      = module.ecs_sql_listener_task_role.role_arn
   container_name     = "sql-listener"
-  container_image    = "${local.sql_listener_repo_uri}:${local.sql_listener_version}"
+  container_image    = "${var.account_id}.dkr.${var.aws_region}.amazonaws.com/${local.sql_listener_repo_name}:${local.sql_listener_version}"
   container_port     = 9000
   cpu                = 256
   memory             = 512
