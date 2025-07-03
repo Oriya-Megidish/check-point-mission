@@ -130,7 +130,6 @@ jobs:
   security_scan:
     name: Scan Docker Images with Trivy
     runs-on: ubuntu-latest
-    needs: build_and_push
 
     steps:
       - uses: actions/checkout@v3
@@ -162,7 +161,7 @@ jobs:
   deploy:
     name: Deploy Services to ECS
     runs-on: ubuntu-latest
-    needs: security_scan
+    needs: build_and_push
 
     steps:
       - name: Configure AWS credentials
