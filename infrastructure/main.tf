@@ -1,9 +1,21 @@
+module "ecs_rest_service_task_role" {
+  source             = "./modules/iam_role" 
+  role_name          = "ecs-rest-service-task-role"
+  assume_role_service = "ecs-tasks.amazonaws.com"  
+}
+module "ecs_sql_listener_task_role" {
+  source             = "./modules/iam_role" 
+  role_name          = "ecs-sql-listener-task-role"
+  assume_role_service = "ecs-tasks.amazonaws.com"  
+}
+
 module "s3_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/s3-key"
   description     = "KMS key for S3 encryption"
   bucket_name     = local.s3_bucket_name
   admin_role_arn  = var.admin_role_arn
+  extra_key_users = [module.ecs_rest_service_task_role.role_arn, module.ecs_sql_listener_task_role.role_arn]
 }
 
 module "sqs_kms" {
