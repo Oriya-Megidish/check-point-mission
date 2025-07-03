@@ -19,6 +19,11 @@ resource "pre_ecs_sql_listener_task_role" "listener_role" {
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
+resource "pre_ecs_execution_role" "execution_role" {
+  name               = "ecs-execution-role"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+}
+
 module "s3_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/s3-key"
@@ -59,7 +64,6 @@ module "sql_listener_ecr_repository" {
 module "ecs_sql_listener_task_role" {
   source             = "./modules/iam_role" 
   role_name          = "ecs-sql-listener-task-role"
-  assume_role_service = "ecs-tasks.amazonaws.com"  
 
   permissions = [
     "s3_write",
@@ -80,7 +84,6 @@ module "ecs_sql_listener_task_role" {
 module "ecs_rest_service_task_role" {
   source             = "./modules/iam_role" 
   role_name          = "ecs-rest-service-task-role"
-  assume_role_service = "ecs-tasks.amazonaws.com"  
 
   permissions = [
     "sqs_send",
@@ -108,7 +111,6 @@ resource "aws_cloudwatch_log_group" "ecs_sql_listener_log_group" {
 module "ecs_execution_role" {
   source             = "./modules/iam_role" 
   role_name          = "ecs-execution-role"
-  assume_role_service = "ecs-tasks.amazonaws.com"  
 
   permissions = [
     "ecr_pull",
