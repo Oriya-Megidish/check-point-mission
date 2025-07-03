@@ -1,5 +1,4 @@
-﻿# KMS for S3
-module "s3_kms" {
+﻿module "s3_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/s3-key"
   description     = "KMS key for S3 encryption"
@@ -7,7 +6,6 @@ module "s3_kms" {
   admin_role_arn  = var.admin_role_arn
 }
 
-# KMS for SQS
 module "sqs_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/sqs-key"
@@ -224,6 +222,59 @@ resource "aws_security_group_rule" "ecs_from_elb_ingress" {
   security_group_id        = module.ecs_rest_task_sg.security_group_id
   source_security_group_id = module.elb_sg.security_group_id
   }
+
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id       = module.network.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type = "Interface"
+  subnet_ids   = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id       = module.network.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type = "Interface"
+  subnet_ids   = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+}
+
+# Gateway endpoint for S3 (for ECS service)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = module.network.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [module.network.private_route_table_id]
+}
+
+# Interface endpoint for CloudWatch Logs
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+}
+
+# Interface endpoint for SSM
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_rest_task_sg.security_group_id]
+}
+
+# Interface endpoint for KMS
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.kms"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+}
+
 
 module "my_alb" {
   source = "./modules/elb"
