@@ -1,186 +1,412 @@
-name: CI/CD for ECS Microservices
+module "s3_kms" {
+  source          = "./modules/kms"
+  key_alias       = "alias/s3-key"
+  description     = "KMS key for S3 encryption"
+  bucket_name     = local.s3_bucket_name
+  admin_role_arn  = var.admin_role_arn
+}
 
-on:
-  push:
-    branches:
-      - main
+module "sqs_kms" {
+  source          = "./modules/kms"
+  key_alias       = "alias/sqs-key"
+  description     = "KMS key for SQS encryption"
+  sqs_queue_arn   = "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}"
+  admin_role_arn  = var.admin_role_arn
+}
 
-env:
-  AWS_REGION: ${{ secrets.AWS_REGION }}
-  REST_SERVICE_ECR_REPO: ${{ secrets.ECR_REST_SERVICE_REPO_URI }}
-  SQL_LISTENER_ECR_REPO: ${{ secrets.ECR_SQL_LISTENER_REPO_URI }}
-  CLUSTER_NAME: ${{ secrets.OWNER }}-cluster
-  REST_SERVICE_NAME: ${{ secrets.REST_SERVICE_NAME }}
-  SQL_LISTENER_SERVICE_NAME: ${{ secrets.SQL_LISTENER_SERVICE_NAME }}
-  
+resource "aws_ssm_parameter" "my_parameter" {
+  name        = local.parameter_path      
+  description = "Token for my application"
+  type        = "SecureString"              
+  value       = var.token_parameter
+  }
 
-jobs:
-  terraform:
-    name: Terraform Apply
-    runs-on: ubuntu-latest
+module "rest_service_ecr_repository" {
+  source              = "./modules/ecr"
+  repository_name     = local.rest_repo_name
+  image_tag_mutability = "MUTABLE"
+}
 
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
+module "sql_listener_ecr_repository" {
+  source              = "./modules/ecr"
+  repository_name     = local.sql_listener_repo_name
+  image_tag_mutability = "MUTABLE"
+}
 
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+module "ecs_sql_listener_task_role" {
+  source             = "./modules/iam_role" 
+  role_name          = "ecs-sql-listener-task-role"
+  assume_role_service = "ecs-tasks.amazonaws.com"  
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: v1.4.6  
+  permissions = [
+    "s3_write",
+    "sqs_delete",
+    "sqs_receive"
+  ]
 
-      - name: Terraform Init
-        working-directory: infrastructure/
-        run: terraform init 
+  resources = [
+    "arn:aws:s3:::${local.s3_bucket_name}",
+    "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}"
+    ]
+}
 
-      - name: Terraform Validate
-        working-directory: infrastructure/
-        run: terraform validate
+module "ecs_rest_service_task_role" {
+  source             = "./modules/iam_role" 
+  role_name          = "ecs-rest-service-task-role"
+  assume_role_service = "ecs-tasks.amazonaws.com"  
 
-      - name: Terraform Plan
-        working-directory: infrastructure/
-        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="aws_region=${{ secrets.AWS_REGION }}" -var="admin_role_arn=${{ secrets.ADMIN_ROLE_ARN }}" -var="token_parameter=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}"
+  permissions = [
+    "sqs_send",
+    "ssm_get"
+  ]
 
-      - name: Terraform Apply
-        working-directory: infrastructure/
-        run: terraform apply -auto-approve tfplan
-        
-  tests:
-    name: Run Tests on Microservices
-    runs-on: ubuntu-latest
-    needs: terraform
+  resources = [
+    "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}",
+    "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter${local.parameter_path}"
+    ]
+}
 
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+resource "aws_cloudwatch_log_group" "ecs_rest_log_group" {
+  name              = "/ecs/rest-service"  
+  retention_in_days  = 14
+  }
 
-      - name: Test Rest service 
-        run: |
-          cd services/rest_service
-          python3 -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pytest tests/
+resource "aws_cloudwatch_log_group" "ecs_sql_listener_log_group" {
+  name              = "/ecs/sql-listener-service"   
+  retention_in_days  = 14
+  }
 
-      - name: Test Sql listener
-        run: |
-          cd services/sql_listener
-          python3 -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pytest tests/
+module "ecs_execution_role" {
+  source             = "./modules/iam_role" 
+  role_name          = "ecs-execution-role"
+  assume_role_service = "ecs-tasks.amazonaws.com"  
 
-  build_and_push:
-    name: Build and Push Docker Images
-    runs-on: ubuntu-latest
-    needs: terraform
+  permissions = [
+    "ecr_pull",
+    "cloudwatch_write"
+  ]
 
-    steps:
-      - uses: actions/checkout@v3
+  resources = [
+    "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.rest_service_ecr_repository.repository_name}",
+    "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.sql_listener_ecr_repository.repository_name}",
+    "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_rest_log_group.name}",
+    "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_sql_listener_log_group.name}"
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+]
+  depends_on = [
+    module.rest_service_ecr_repository,
+    module.sql_listener_ecr_repository
+]
+}
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
+resource "aws_iam_role_policy" "extra_policy" {
+  name = "${module.ecs_execution_role.role_name}-extra-policy"
+  role = module.ecs_execution_role.role_name
 
-      - name: Build Rest service Docker Image
-        run: |
-          cd services/rest_service
-          docker build -t $REST_SERVICE_ECR_REPO:latest .
-        env:
-          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+            "ecr:GetAuthorizationToken",
+        ]
+        Resource = "*"
+        }
+    ]
+  })
+}
 
-      - name: Push Rest service Docker Image
-        run: docker push $REST_SERVICE_ECR_REPO:latest
-        env:
-          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
 
-      - name: Build Sql listener Docker Image
-        run: |
-          cd services/sql_listener
-          docker build -t $SQL_LISTENER_ECR_REPO:latest .
-        env:
-          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
+module "oriya_sqs_queue" {
+  source = "./modules/sqs"  
 
-      - name: Push Sql listener Docker Image
-        run: docker push $SQL_LISTENER_ECR_REPO:latest
-        env:
-          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
+  queue_name                = local.sqs_queue_name
+  dlq_name                  = "${var.owner}-queue-dlq"
+  kms_key_arn               = module.sqs_kms.key_arn
 
-  security_scan:
-    name: Scan Docker Images with Trivy
-    runs-on: ubuntu-latest
+  admin_role_arn = var.admin_role_arn
 
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+  role_permissions = {
+    (module.ecs_rest_service_task_role.role_arn) = ["send"]
+    (module.ecs_sql_listener_task_role.role_arn) = ["receive", "delete"]
+    }
+}
 
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
+# S3 for sqs listener service
+module "oriya_s3_bucket" {
+  source = "./modules/s3"
 
-      - name: Scan Rest service Image
-        uses: aquasecurity/trivy-action@v0.12.0
-        with:
-          image-ref: ${{ env.REST_SERVICE_ECR_REPO }}:latest
-          format: table
-          ignore-unfixed: true
+  bucket_name    = local.s3_bucket_name
+  kms_key_arn     = module.s3_kms.key_arn
+  admin_role_arn = var.admin_role_arn
 
-      - name: Scan Sql listener Image
-        uses: aquasecurity/trivy-action@v0.12.0
-        with:
-          image-ref: ${{ env.SQL_LISTENER_ECR_REPO }}:latest
-          format: table
-          ignore-unfixed: true
+  role_permissions = {
+    (module.ecs_sql_listener_task_role.role_arn) = ["write"]
+    }
 
-  deploy:
-    name: Deploy Services to ECS
-    runs-on: ubuntu-latest
-    needs: build_and_push
+  force_destroy = true
+}
 
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+module "network" {
+  source = "./modules/network"
 
-      - name: Deploy Rest service
-        run: |
-          aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_NAME --force-new-deployment
-        env:
-          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
-          REST_SERVICE_NAME: ${{ env.REST_SERVICE_NAME }}
-          
-      - name: Deploy Sql listener
-        run: |
-          aws ecs update-service --cluster $CLUSTER_NAME --service $SQL_LISTENER_SERVICE_NAME --force-new-deployment
-        env:
-          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
-          SQL_LISTENER_SERVICE_NAME: ${{ env.SQL_LISTENER_SERVICE_NAME }}
+  owner               = var.owner
+  vpc_cidr            = "10.0.0.0/16"
+
+  public_subnet_cidrs = [
+    "10.0.1.0/24",
+    "10.0.2.0/24"
+    ]
+
+  private_subnet_cidrs = [
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+}
+
+module "ecs_rest_task_sg" {
+  source      = "./modules/security_group"
+  name        = "${var.owner}-rest-service-ecs-task-sg"
+  description = "ECS task security group"
+  vpc_id      = module.network.vpc_id
+
+  egress = [
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "udp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    },
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 443"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks  = [  
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    }
+  ]
+}
+
+module "ecs_sql_listener_task_sg" {
+  source      = "./modules/security_group"
+  name        = "${var.owner}-sql-listener-ecs-task-sg"
+  description = "ECS task security group"
+  vpc_id      = module.network.vpc_id
+
+  egress = [
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "udp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    },
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 443"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks  = [  
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    }
+  ]
+}
+
+module "endpoints_sg" {
+  source      = "./modules/security_group"
+  name        = "${var.owner}-endpoints-sg"
+  description = "Endpoints security group"
+  vpc_id      = module.network.vpc_id
+
+  ingress = [
+  {
+    description = "Allow HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    security_groups  = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+  }
+ ]
+}
+
+module "elb_sg" {
+  source      = "./modules/security_group"
+  name        = "${var.owner}-elb-sg"
+  description = "ELB security group"
+  vpc_id      = module.network.vpc_id
+
+  ingress = [
+  {
+    description = "Allow HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  },
+  {
+    description = "Allow HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+ ]
+
+  egress = [
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 5000"
+    from_port        = 5000
+    to_port          = 5000
+    protocol         = "tcp"
+    security_groups  = [module.ecs_rest_task_sg.security_group_id]
+    }
+  ]
+}
+
+
+resource "aws_security_group_rule" "ecs_from_elb_ingress" {
+  type                     = "ingress"
+  from_port                = 5000
+  to_port                  = 5000
+  protocol                 = "tcp"
+  security_group_id        = module.ecs_rest_task_sg.security_group_id
+  source_security_group_id = module.elb_sg.security_group_id
+  }
+
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id       = module.network.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.ecr.api"
+  vpc_endpoint_type = "Interface"
+  subnet_ids   = module.network.private_subnet_ids
+  security_group_ids = [module.endpoints_sg.security_group_id]
+}
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id       = module.network.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.ecr.dkr"
+  vpc_endpoint_type = "Interface"
+  subnet_ids   = module.network.private_subnet_ids
+  security_group_ids = [module.endpoints_sg.security_group_id]
+}
+
+# Gateway endpoint for S3 (for ECS service)
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = module.network.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [module.network.private_route_table_id]
+}
+
+# Interface endpoint for CloudWatch Logs
+resource "aws_vpc_endpoint" "logs" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.logs"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_ids = [module.endpoints_sg.security_group_id]
+  }
+
+# Interface endpoint for SSM
+resource "aws_vpc_endpoint" "ssm" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.ssm"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_ids = [module.endpoints_sg.security_group_id]
+}
+
+# Interface endpoint for KMS
+resource "aws_vpc_endpoint" "kms" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.kms"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+  security_group_ids = [module.endpoints_sg.security_group_id]
+}
+
+
+module "my_alb" {
+  source = "./modules/elb"
+
+  name                       = "${var.owner}-alb"
+  internal                   = false
+  subnet_ids                 = module.network.public_subnet_ids
+  security_groups            = [module.elb_sg.security_group_id]
+
+  target_group_port          = 5000
+  target_group_protocol      = "HTTP"
+  target_group_target_type   = "ip"
+  vpc_id                     = module.network.vpc_id
+  target_group_health_check_path = "/health"
+
+  listener_http              = true
+  listener_https             = false
+  }
+
+  resource "aws_ecs_cluster" "main" {
+    name = local.cluster_name
+}
+
+  module "rest_ecs_service" {
+  source = "./modules/ecs"
+
+  cluster_name       = aws_ecs_cluster.main.name
+  service_name       = "rest_ecs_service"
+  task_family        = "${var.owner}-rest-service-task"
+  execution_role_arn = module.ecs_execution_role.role_arn
+  task_role_arn      = module.ecs_rest_service_task_role.role_arn
+  container_name     = "rest-app"
+  container_image    = "${var.account_id}.dkr.${var.aws_region}.amazonaws.com/${local.rest_repo_name}:${local.rest_version}"
+  container_port     = 5000
+  cpu                = 256
+  memory             = 512
+  log_group_name     = aws_cloudwatch_log_group.ecs_rest_log_group.name
+  log_stream_prefix  = "rest-service"
+  region             = var.aws_region
+
+  subnet_ids         = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_rest_task_sg.security_group_id]
+  target_group_arn = module.my_alb.target_group_arn
+  depends_on = [aws_ecs_cluster.main]
+}
+
+  module "sql_listener_ecs_service" {
+  source = "./modules/ecs"
+
+  cluster_name       = aws_ecs_cluster.main.name
+  service_name       = "sql_listener_ecs_service"
+  task_family        = "${var.owner}-sql-listener-task"
+  execution_role_arn = module.ecs_execution_role.role_arn
+  task_role_arn      = module.ecs_sql_listener_task_role.role_arn
+  container_name     = "sql-listener"
+  container_image    = "${var.account_id}.dkr.${var.aws_region}.amazonaws.com/${local.sql_listener_repo_name}:${local.sql_listener_version}"
+  container_port     = 9000
+  cpu                = 256
+  memory             = 512
+  log_group_name     = aws_cloudwatch_log_group.ecs_sql_listener_log_group.name
+  log_stream_prefix  = "sql-listener" 
+  region             = var.aws_region
+
+  subnet_ids         = module.network.private_subnet_ids
+  security_group_ids = [module.ecs_sql_listener_task_sg.security_group_id]
+  depends_on = [aws_ecs_cluster.main]
+}
+
