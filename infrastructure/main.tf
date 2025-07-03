@@ -333,7 +333,7 @@ resource "aws_vpc_endpoint" "route53_resolver" {
 
   security_group_ids = [module.endpoints_sg.security_group_id]
 
-  private_dns_enabled = true
+  private_dns_enabled = true
 }
 
 resource "aws_vpc_endpoint" "ecr_api" {
