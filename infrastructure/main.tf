@@ -1,4 +1,4 @@
-﻿module "s3_kms" {
+module "s3_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/s3-key"
   description     = "KMS key for S3 encryption"
@@ -170,6 +170,31 @@ module "ecs_rest_task_sg" {
   name        = "${var.owner}-rest-service-ecs-task-sg"
   description = "ECS task security group"
   vpc_id      = module.network.vpc_id
+
+  egress = [
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "udp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    },
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 443"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks  = [  
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    }
+  ]
 }
 
 module "ecs_sql_listener_task_sg" {
@@ -177,6 +202,48 @@ module "ecs_sql_listener_task_sg" {
   name        = "${var.owner}-sql-listener-ecs-task-sg"
   description = "ECS task security group"
   vpc_id      = module.network.vpc_id
+
+  egress = [
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "udp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    },
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 443"
+    from_port        = 443
+    to_port          = 443
+    protocol         = "tcp"
+    cidr_blocks  = [  
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+    }
+  ]
+}
+
+module "endpoints_sg" {
+  source      = "./modules/security_group"
+  name        = "${var.owner}-endpoints-sg"
+  description = "Endpoints security group"
+  vpc_id      = module.network.vpc_id
+
+  ingress = [
+  {
+    description = "Allow HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    security_groups  = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+  }
+ ]
 }
 
 module "elb_sg" {
@@ -229,7 +296,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   service_name = "com.amazonaws.${var.aws_region}.ecr.api"
   vpc_endpoint_type = "Interface"
   subnet_ids   = module.network.private_subnet_ids
-  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+  security_group_ids = [module.endpoints_sg.security_group_id]
 }
 
 resource "aws_vpc_endpoint" "ecr_dkr" {
@@ -237,7 +304,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   service_name = "com.amazonaws.${var.aws_region}.ecr.dkr"
   vpc_endpoint_type = "Interface"
   subnet_ids   = module.network.private_subnet_ids
-  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+  security_group_ids = [module.endpoints_sg.security_group_id]
 }
 
 # Gateway endpoint for S3 (for ECS service)
@@ -254,8 +321,8 @@ resource "aws_vpc_endpoint" "logs" {
   service_name      = "com.amazonaws.${var.aws_region}.logs"
   vpc_endpoint_type = "Interface"
   subnet_ids        = module.network.private_subnet_ids
-  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
-}
+  security_group_ids = [module.endpoints_sg.security_group_id]
+  }
 
 # Interface endpoint for SSM
 resource "aws_vpc_endpoint" "ssm" {
@@ -263,7 +330,7 @@ resource "aws_vpc_endpoint" "ssm" {
   service_name      = "com.amazonaws.${var.aws_region}.ssm"
   vpc_endpoint_type = "Interface"
   subnet_ids        = module.network.private_subnet_ids
-  security_group_ids = [module.ecs_rest_task_sg.security_group_id]
+  security_group_ids = [module.endpoints_sg.security_group_id]
 }
 
 # Interface endpoint for KMS
@@ -272,7 +339,7 @@ resource "aws_vpc_endpoint" "kms" {
   service_name      = "com.amazonaws.${var.aws_region}.kms"
   vpc_endpoint_type = "Interface"
   subnet_ids        = module.network.private_subnet_ids
-  security_group_ids = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+  security_group_ids = [module.endpoints_sg.security_group_id]
 }
 
 
