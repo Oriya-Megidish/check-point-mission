@@ -9,17 +9,17 @@ data "aws_iam_policy_document" "assume_role_policy" {
   }
 }
 
-resource "pre_ecs_rest_service_task_role" "rest_role" {
+resource "aws_iam_role" "pre_ecs_rest_service_task_role" {
   name               = "ecs-rest-service-task-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
-resource "pre_ecs_sql_listener_task_role" "listener_role" {
+resource "aws_iam_role" "pre_ecs_sql_listener_task_role" {
   name               = "ecs-sql-listener-task-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
-resource "pre_ecs_execution_role" "execution_role" {
+resource "aws_iam_role" "pre_ecs_execution_role" {
   name               = "ecs-execution-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
@@ -30,7 +30,7 @@ module "s3_kms" {
   description     = "KMS key for S3 encryption"
   bucket_name     = local.s3_bucket_name
   admin_role_arn  = var.admin_role_arn
-  extra_key_users = [module.pre_ecs_rest_service_task_role.role_arn, module.pre_ecs_sql_listener_task_role.role_arn]
+  extra_key_users = [aws_iam_role.pre_ecs_rest_service_task_role.role_arn, aws_iam_role.pre_ecs_sql_listener_task_role.role_arn]
 }
 
 module "sqs_kms" {
@@ -39,7 +39,7 @@ module "sqs_kms" {
   description     = "KMS key for SQS encryption"
   sqs_queue_arn   = "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}"
   admin_role_arn  = var.admin_role_arn
-  extra_key_users = [module.pre_ecs_rest_service_task_role.role_arn, module.pre_ecs_sql_listener_task_role.role_arn]
+  extra_key_users = [aws_iam_role.pre_ecs_rest_service_task_role.role_arn, aws_iam_role.pre_ecs_sql_listener_task_role.role_arn]
 }
 
 resource "aws_ssm_parameter" "my_parameter" {
