@@ -20,3 +20,8 @@ variable "owner" {
   description = "The owner of the resources"
   type        = string
   }
+
+variable "enable_nat_gateway" {
+  type    = bool
+  default = false
+}

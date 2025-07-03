@@ -19,3 +19,7 @@ variable "sqs_queue_arn" {
   type = string
   default = null
 }
+variable "extra_key_users" {
+  type = list(string)
+  default = []
+}

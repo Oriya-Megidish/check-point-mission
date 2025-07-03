@@ -4,6 +4,7 @@
   load_balancer_type = "application"
   subnets            = var.subnet_ids
   security_groups    = var.security_groups
+  idle_timeout = 180
 }
 
 resource "aws_lb_target_group" "this" {

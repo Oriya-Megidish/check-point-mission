@@ -34,6 +34,15 @@
     ssm_get = [
       "ssm:GetParameter"
       ]
+    kms_decrypt = [
+      "kms:Decrypt"
+]
+    kms_encrypt = [
+      "kms:Encrypt",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:DescribeKey"
+]
     }
 
   actions = concat(
@@ -44,7 +53,9 @@
     contains(var.permissions, "sqs_delete") ? local.permission_map.sqs_delete : [],
     contains(var.permissions, "ecr_pull")   ? local.permission_map.ecr_pull   : [],
     contains(var.permissions, "cloudwatch_write") ? local.permission_map.cloudwatch_write : [],
-    contains(var.permissions, "ssm_get")    ? local.permission_map.ssm_get : []
+    contains(var.permissions, "ssm_get")    ? local.permission_map.ssm_get : [],
+    contains(var.permissions, "kms_decrypt") ? local.permission_map.kms_decrypt : [],
+    contains(var.permissions, "kms_encrypt") ? local.permission_map.kms_encrypt : []
   )
 
 }

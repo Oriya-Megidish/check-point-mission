@@ -97,7 +97,12 @@ def upload_to_sqs():
 @app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok"}), 200
-
+    
+@app.route('/time')
+def get_time():
+    now_unix = int(time.time())
+    return jsonify({"current_time_unix": now_unix})
+    
 # === Entrypoint for running the Flask application ===
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

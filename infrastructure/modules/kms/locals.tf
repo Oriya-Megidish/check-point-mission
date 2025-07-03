@@ -50,4 +50,22 @@
       }
     }
   ] : []
+
+  extra_users_statements = [
+    for arn in var.extra_key_users : {
+      Sid    = "AllowRolePermission-${replace(arn, "[:/.]", "-")}"
+      Effect = "Allow"
+      Principal = {
+        AWS = arn
+      }
+      Action = [
+        "kms:Decrypt",
+        "kms:Encrypt",
+        "kms:GenerateDataKey*",
+        "kms:ReEncrypt*",
+        "kms:DescribeKey"
+      ]
+      Resource = "*"
+}
+]
 }

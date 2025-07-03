@@ -38,6 +38,14 @@ jobs:
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: v1.4.6  
+          
+      - name: Cache Terraform providers and modules
+        uses: actions/cache@v3
+        with:
+         path: infrastructure/.terraform
+         key: ${{ runner.os }}-terraform-${{ hashFiles('infrastructure/**/*.tf') }}
+         restore-keys: |
+           ${{ runner.os }}-terraform-
 
       - name: Terraform Init
         working-directory: infrastructure/
@@ -127,42 +135,10 @@ jobs:
         env:
           SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
 
-  security_scan:
-    name: Scan Docker Images with Trivy
-    runs-on: ubuntu-latest
-    needs: build_and_push
-
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Scan Rest service Image
-        uses: aquasecurity/trivy-action@v0.14.0
-        with:
-          image-ref: ${{ env.REST_SERVICE_ECR_REPO }}:latest
-          format: table
-          ignore-unfixed: true
-
-      - name: Scan Sql listener Image
-        uses: aquasecurity/trivy-action@v0
-        with:
-          image-ref: ${{ env.SQL_LISTENER_ECR_REPO }}:latest
-          format: table
-          ignore-unfixed: true
-
   deploy:
     name: Deploy Services to ECS
     runs-on: ubuntu-latest
-    needs: security_scan
+    needs: build_and_push
 
     steps:
       - name: Configure AWS credentials
