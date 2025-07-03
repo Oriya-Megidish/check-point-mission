@@ -89,8 +89,8 @@ module "ecs_execution_role" {
   resources = [
     "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.rest_service_ecr_repository.repository_name}",
     "arn:aws:ecr:${var.aws_region}:${var.account_id}:repository/${module.sql_listener_ecr_repository.repository_name}",
-    "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_rest_log_group.name}",
-    "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_sql_listener_log_group.name}"
+    "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_rest_log_group.name}:*",
+    "arn:aws:logs:${var.aws_region}:${var.account_id}:log-group:${aws_cloudwatch_log_group.ecs_sql_listener_log_group.name}:*"
 
 ]
   depends_on = [
