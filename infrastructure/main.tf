@@ -131,8 +131,8 @@ module "ecs_execution_role" {
 }
 
 resource "aws_iam_role_policy" "extra_policy" {
-  name = "${module.ecs_execution_role.role_name}-extra-policy"
-  role = module.ecs_execution_role.role_name
+  name = "${aws_iam_role.pre_ecs_execution_role.name}-extra-policy"
+  role = aws_iam_role.pre_ecs_execution_role.name
 
   policy = jsonencode({
     Version = "2012-10-17"
