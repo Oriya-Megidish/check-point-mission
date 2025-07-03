@@ -131,31 +131,40 @@ jobs:
     name: Scan Docker Images with Trivy
     runs-on: ubuntu-latest
 
+    env:
+     AWS_REGION: ${{ secrets.AWS_REGION }}
+     REST_SERVICE_ECR_REPO: ${{ secrets.ECR_REST_SERVICE_REPO_URI }}
+     SQL_LISTENER_ECR_REPO: ${{ secrets.ECR_SQL_LISTENER_REPO_URI }}
+     
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
       
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR (Rest service)
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry: ${{ env.REST_SERVICE_ECR_REPO }}
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Scan Rest service Image
-        run: docker scan ${{ env.REST_SERVICE_ECR_REPO }}:latest 
+    - name: Install Trivy
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget
+        wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.43.0_Linux-64bit.deb
+        sudo dpkg -i trivy_0.43.0_Linux-64bit.deb
 
-      - name: Login to Amazon ECR (Sql listener)
-        uses: aws-actions/amazon-ecr-login@v1
-        with:
-          registry: ${{ env.SQL_LISTENER_ECR_REPO }}
+    - name: Scan Rest service Image with Trivy
+      run: trivy image $REST_SERVICE_ECR_REPO:latest
+      env:
+          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
 
-      - name: Scan Sql listener Image
-        run: docker scan ${{ env.SQL_LISTENER_ECR_REPO }}:latest  
+    - name: Scan Sql listener Image with Trivy
+      run: trivy image $SQL_LISTENER_ECR_REPO:latest
+      env:
+          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
 
   deploy:
     name: Deploy Services to ECS
