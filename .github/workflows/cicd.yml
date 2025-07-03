@@ -106,17 +106,25 @@ jobs:
         run: |
           cd services/rest_service
           docker build -t $REST_SERVICE_ECR_REPO:latest .
+        env:
+          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
 
       - name: Push Rest service Docker Image
         run: docker push $REST_SERVICE_ECR_REPO:latest
+        env:
+          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
 
       - name: Build Sql listener Docker Image
         run: |
           cd services/sql_listener
           docker build -t $SQL_LISTENER_ECR_REPO:latest .
+        env:
+          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
 
       - name: Push Sql listener Docker Image
         run: docker push $SQL_LISTENER_ECR_REPO:latest
+        env:
+          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
 
   security_scan:
     name: Scan Docker Images with Trivy
