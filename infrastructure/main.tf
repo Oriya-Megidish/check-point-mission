@@ -41,12 +41,16 @@ module "ecs_sql_listener_task_role" {
   permissions = [
     "s3_write",
     "sqs_delete",
-    "sqs_receive"
+    "sqs_receive",
+    "kms_encrypt",
+    "kms_decrypt"
   ]
 
   resources = [
     "arn:aws:s3:::${local.s3_bucket_name}",
-    "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}"
+    "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}",
+     module.sqs_kms.key_arn,
+     module.s3_kms.key_arn
     ]
 }
 
@@ -57,12 +61,14 @@ module "ecs_rest_service_task_role" {
 
   permissions = [
     "sqs_send",
-    "ssm_get"
+    "ssm_get",
+    "kms_encrypt"
   ]
 
   resources = [
     "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}",
-    "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter${local.parameter_path}"
+    "arn:aws:ssm:${var.aws_region}:${var.account_id}:parameter${local.parameter_path}",
+     module.sqs_kms.key_arn
     ]
 }
 
