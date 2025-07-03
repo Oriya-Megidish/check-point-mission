@@ -23,5 +23,5 @@ variable "owner" {
 
 variable "enable_nat_gateway" {
   type    = bool
-  default = false
+  default = false
 }
