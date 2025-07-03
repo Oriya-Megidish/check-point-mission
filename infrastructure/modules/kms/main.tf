@@ -7,7 +7,7 @@
     Statement = concat(
       local.admin_statement,
       local.s3_statement,
-      local.sqs_statement
+      local.sqs_statement,
       local.extra_users_statements
     )
   })
