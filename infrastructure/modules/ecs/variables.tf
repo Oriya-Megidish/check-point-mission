@@ -96,5 +96,5 @@ variable "assign_public_ip" {
 variable "container_env_vars" {
   description = "Map of environment variables"
   type        = map(string)
-  default     {}
+  default     = {}
 }
