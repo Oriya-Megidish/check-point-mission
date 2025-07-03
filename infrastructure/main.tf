@@ -405,7 +405,7 @@ module "my_alb" {
   region             = var.aws_region
   log_group_name     = aws_cloudwatch_log_group.ecs_rest_log_group.name
   log_stream_prefix  = "rest-service"
-  conainer_env_vars = {
+  container_env_vars = {
     REGION = var.aws_region
     QUEUE_URL = module.oriya_sqs_queue.main_queue_url
     SSM_PARAM_NAME = aws_ssm_parameter.my_parameter.name
@@ -432,7 +432,7 @@ module "my_alb" {
   region             = var.aws_region
   log_group_name     = aws_cloudwatch_log_group.ecs_sql_listener_log_group.name
   log_stream_prefix  = "sql-listener" 
-  conainer_env_vars = {
+  container_env_vars = {
     REGION = var.aws_region
     QUEUE_URL = module.oriya_sqs_queue.main_queue_url
     S3_BUCKET = local.s3_bucket_name
