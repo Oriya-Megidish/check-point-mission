@@ -7,11 +7,12 @@ on:
 
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
-  ECR_REPO_1: ${{ secrets.ECR_REPOSITORY_URI_1 }}
-  ECR_REPO_2: ${{ secrets.ECR_REPOSITORY_URI_2 }}
-  CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
-  SERVICE_NAME_1: ${{ secrets.SERVICE_NAME_1 }}
-  SERVICE_NAME_2: ${{ secrets.SERVICE_NAME_2 }}
+  REST_SERVICE_ECR_REPO: ${{ secrets.ECR_REST_SERVICE_REPOS_URI }}
+  SQL_LISTENER_ECR_REPO: ${{ secrets.ECR_SQL_LISTENER_REPO_URI }}
+  CLUSTER_NAME: ${{ secrets.OWNER }}-cluster
+  REST_SERVICE_SERVICE_NAME: ${{ secrets.REST_SERVICE_NAME }}
+  SQL_LISTENER_SERVICE_NAME: ${{ secrets.SQL_LISTENER_SERVICE_NAME }}
+  
 
 jobs:
   terraform:
@@ -38,7 +39,7 @@ jobs:
         run: terraform validate infrastructure/
 
       - name: Terraform Plan
-        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}" -chdir=./iac
+        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}" -chdir=./infrastructure
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfpl
@@ -85,18 +86,18 @@ jobs:
       - name: Build Rest service Docker Image
         run: |
           cd services/rest_service
-          docker build -t $ECR_REPO_1:latest .
+          docker build -t $REST_SERVICE_ECR_REPO:latest .
 
       - name: Push Rest service Docker Image
-        run: docker push $ECR_REPO_1:latest
+        run: docker push $REST_SERVICE_ECR_REPO:latest
 
       - name: Build Sql listener Docker Image
         run: |
           cd services/sql_listener
-          docker build -t $ECR_REPO_2:latest .
+          docker build -t $SQL_LISTENER_ECR_REPO:latest .
 
       - name: Push Sql listener Docker Image
-        run: docker push $ECR_REPO_2:latest
+        run: docker push $SQL_LISTENER_ECR_REPO:latest
 
   security_scan:
     name: Scan Docker Images with Trivy
@@ -112,14 +113,14 @@ jobs:
       - name: Scan Rest service Image
         uses: aquasecurity/trivy-action@v0.14.0
         with:
-          image-ref: ${{ env.ECR_REPO_1 }}:latest
+          image-ref: ${{ env.REST_SERVICE_ECR_REPO }}:latest
           format: table
           ignore-unfixed: true
 
       - name: Scan Sql listener Image
         uses: aquasecurity/trivy-action@v0.14.0
         with:
-          image-ref: ${{ env.ECR_REPO_2 }}:latest
+          image-ref: ${{ env.SQL_LISTENER_ECR_REPO }}:latest
           format: table
           ignore-unfixed: true
 
@@ -138,8 +139,8 @@ jobs:
 
       - name: Deploy Rest service
         run: |
-          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME_1 --force-new-deployment
+          aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_SERVICE_NAME --force-new-deployment
 
       - name: Deploy Sql listener
         run: |
-          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME_2 --force-new-deployment
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SQL_LISTENER_SERVICE_NAME --force-new-deployment
