@@ -406,9 +406,9 @@ module "my_alb" {
   log_group_name     = aws_cloudwatch_log_group.ecs_rest_log_group.name
   log_stream_prefix  = "rest-service"
   container_env_vars = {
-    REGION = var.aws_region
-    QUEUE_URL = module.oriya_sqs_queue.main_queue_url
-    SSM_PARAM_NAME = aws_ssm_parameter.my_parameter.name
+    AWS_REGION = var.aws_region
+    SQS_QUEUE_URL = module.oriya_sqs_queue.main_queue_url
+    SSM_TOKEN_PARAM = aws_ssm_parameter.my_parameter.name
 }
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.ecs_rest_task_sg.security_group_id]
@@ -433,9 +433,9 @@ module "my_alb" {
   log_group_name     = aws_cloudwatch_log_group.ecs_sql_listener_log_group.name
   log_stream_prefix  = "sql-listener" 
   container_env_vars = {
-    REGION = var.aws_region
-    QUEUE_URL = module.oriya_sqs_queue.main_queue_url
-    S3_BUCKET = local.s3_bucket_name
+    AWS_REGION = var.aws_region
+    SQS_QUEUE_URL = module.oriya_sqs_queue.main_queue_url
+    S3_BUCKET_NAME = local.s3_bucket_name
 }
   subnet_ids         = module.network.private_subnet_ids
   security_group_ids = [module.ecs_sql_listener_task_sg.security_group_id]
