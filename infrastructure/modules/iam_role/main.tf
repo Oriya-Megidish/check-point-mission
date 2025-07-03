@@ -15,7 +15,7 @@ resource "aws_iam_role" "this" {
 }
 
 data "aws_iam_policy_document" "role_policy" {
-  count = length(var.actions) > 0 && length(var.resources) > 0 ? 1 : 0
+  count = length(var.resources) > 0 ? 1 : 0
   statement {
     effect    = "Allow"
     actions   = local.actions
@@ -24,13 +24,13 @@ data "aws_iam_policy_document" "role_policy" {
 }
 
 resource "aws_iam_policy" "this" {
-  count = length(var.actions) > 0 && length(var.resources) > 0 ? 1 : 0
+  count = length(var.resources) > 0 ? 1 : 0
   name   = "${var.role_name}-policy"
   policy = data.aws_iam_policy_document.role_policy.json
 }
 
 resource "aws_iam_role_policy_attachment" "this" {
-  count = length(var.actions) > 0 && length(var.resources) > 0 ? 1 : 0
+  count = length(var.resources) > 0 ? 1 : 0
   role       = aws_iam_role.this.name
   policy_arn = aws_iam_policy.this.arn
 }
