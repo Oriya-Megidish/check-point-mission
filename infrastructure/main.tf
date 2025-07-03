@@ -372,7 +372,7 @@ resource "aws_vpc_endpoint" "sqs" {
   vpc_endpoint_type = "Interface"
   subnet_ids   = module.network.private_subnet_ids
   security_group_ids = [module.endpoints_sg.security_group_id]
-  private_dns_enabled = true
+  private_dns_enabled = true
 }
 
 module "my_alb" {
