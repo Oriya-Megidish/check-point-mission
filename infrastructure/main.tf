@@ -159,8 +159,8 @@ module "oriya_sqs_queue" {
   admin_role_arn = var.admin_role_arn
 
   role_permissions = {
-    (module.ecs_rest_service_task_role.role_arn) = ["send"]
-    (module.ecs_sql_listener_task_role.role_arn) = ["receive", "delete"]
+    (aws_iam_role.pre_ecs_rest_service_task_role.arn) = ["send"]
+    (aws_iam_role.pre_ecs_sql_listener_task_role.arn) = ["receive", "delete"]
     }
 }
 
@@ -173,7 +173,7 @@ module "oriya_s3_bucket" {
   admin_role_arn = var.admin_role_arn
 
   role_permissions = {
-    (module.ecs_sql_listener_task_role.role_arn) = ["write"]
+    (aws_iam_role.pre_ecs_sql_listener_task_role.arn) = ["write"]
     }
 
   force_destroy = true
@@ -434,8 +434,8 @@ module "my_alb" {
   cluster_name       = aws_ecs_cluster.main.name
   service_name       = "rest_ecs_service"
   task_family        = "${var.owner}-rest-service-task"
-  execution_role_arn = module.ecs_execution_role.role_arn
-  task_role_arn      = module.ecs_rest_service_task_role.role_arn
+  execution_role_arn = aws_iam_role.pre_ecs_execution_role.arn
+  task_role_arn      = aws_iam_role.pre_ecs_rest_service_task_role.arn
   container_name     = "rest-app"
   container_image    = "${var.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.rest_repo_name}:${local.rest_version}"
   container_port     = 5000
@@ -461,8 +461,8 @@ module "my_alb" {
   cluster_name       = aws_ecs_cluster.main.name
   service_name       = "sql_listener_ecs_service"
   task_family        = "${var.owner}-sql-listener-task"
-  execution_role_arn = module.ecs_execution_role.role_arn
-  task_role_arn      = module.ecs_sql_listener_task_role.role_arn
+  execution_role_arn = aws_iam_role.pre_ecs_execution_role.arn
+  task_role_arn      = aws_iam_role.pre_ecs_sql_listener_task_role.arn
   container_name     = "sql-listener"
   container_image    = "${var.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.sql_listener_repo_name}:${local.sql_listener_version}"
   container_port     = 9000
