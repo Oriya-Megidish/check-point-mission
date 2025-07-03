@@ -241,7 +241,7 @@ module "endpoints_sg" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    security_groups  = [module.ecs_rest_task_sg.security_group_id, module.ecs_sql_listener_task_sg.security_group_id]
+    cidr_blocks = ["0.0.0.0/0"]
   }
  ]
 }
