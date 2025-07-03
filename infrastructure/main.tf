@@ -367,7 +367,7 @@ resource "aws_vpc_endpoint" "kms" {
 }
 
 resource "aws_vpc_endpoint" "sqs" {
-  vpc_id       = var.vpc_id
+  vpc_id       = module.network.vpc_id
   service_name = "com.amazonaws.${var.aws_region}.sqs"
   vpc_endpoint_type = "Interface"
   subnet_ids   = module.network.private_subnet_ids
