@@ -1,0 +1,165 @@
+name: CI/CD for ECS Microservices
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  REST_SERVICE_ECR_REPO: ${{ secrets.ECR_REST_SERVICE_REPOS_URI }}
+  SQL_LISTENER_ECR_REPO: ${{ secrets.ECR_SQL_LISTENER_REPO_URI }}
+  CLUSTER_NAME: ${{ secrets.OWNER }}-cluster
+  REST_SERVICE_SERVICE_NAME: ${{ secrets.REST_SERVICE_NAME }}
+  SQL_LISTENER_SERVICE_NAME: ${{ secrets.SQL_LISTENER_SERVICE_NAME }}
+  
+
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: v1.12.2  
+
+      - name: Terraform Init
+        run: terraform init infrastructure/
+
+      - name: Terraform Validate
+        run: terraform validate infrastructure/
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}" -chdir=./infrastructure
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        
+  tests:
+    name: Run Tests on Microservices
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test Rest service 
+        run: |
+          cd services/rest_service
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pytest
+
+      - name: Test Sql listener
+        run: |
+          cd services/sql_listener
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pytest
+
+  build_and_push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: tests
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build Rest service Docker Image
+        run: |
+          cd services/rest_service
+          docker build -t $REST_SERVICE_ECR_REPO:latest .
+
+      - name: Push Rest service Docker Image
+        run: docker push $REST_SERVICE_ECR_REPO:latest
+
+      - name: Build Sql listener Docker Image
+        run: |
+          cd services/sql_listener
+          docker build -t $SQL_LISTENER_ECR_REPO:latest .
+
+      - name: Push Sql listener Docker Image
+        run: docker push $SQL_LISTENER_ECR_REPO:latest
+
+  security_scan:
+    name: Scan Docker Images with Trivy
+    runs-on: ubuntu-latest
+    needs: build_and_push
+
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Scan Rest service Image
+        uses: aquasecurity/trivy-action@v0.14.0
+        with:
+          image-ref: ${{ env.REST_SERVICE_ECR_REPO }}:latest
+          format: table
+          ignore-unfixed: true
+
+      - name: Scan Sql listener Image
+        uses: aquasecurity/trivy-action@v0.14.0
+        with:
+          image-ref: ${{ env.SQL_LISTENER_ECR_REPO }}:latest
+          format: table
+          ignore-unfixed: true
+
+  deploy:
+    name: Deploy Services to ECS
+    runs-on: ubuntu-latest
+    needs: security_scan
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy Rest service
+        run: |
+          aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_NAME --force-new-deployment
+        env:
+          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
+          REST_SERVICE_NAME: ${{ env.REST_SERVICE_NAME }}
+          
+      - name: Deploy Sql listener
+        run: |
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SQL_LISTENER_SERVICE_NAME --force-new-deployment
+        env:
+          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
+          SQL_LISTENER_SERVICE_NAME: ${{ env.SQL_LISTENER_SERVICE_NAME }}

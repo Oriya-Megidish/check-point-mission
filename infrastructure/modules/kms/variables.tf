@@ -1,0 +1,21 @@
+﻿variable "key_alias" {
+  type = string
+}
+
+variable "description" {
+  type = string
+}
+
+variable "admin_role_arn" {
+  type = string
+}
+
+variable "bucket_name" {
+  type = string
+  default = null
+}
+
+variable "sqs_queue_arn" {
+  type = string
+  default = null
+}

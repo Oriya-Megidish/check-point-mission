@@ -1,0 +1,6 @@
+infrastructure/.terraform
+/.terraform
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+infrastructure/.terraform/providers/registry.terraform.io/hashicorp/aws/6.0.0/windows_386/terraform-provider-aws_v6.0.0_x5.exe 
