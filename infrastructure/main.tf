@@ -242,8 +242,43 @@ module "endpoints_sg" {
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-  }
+  },
+  {
+    description      = "Allow traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "udp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+},
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "tcp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+}
  ]
+  egress = [
+  {
+    description      = "Allow outbound traffic to ECS tasks on port 53"
+    from_port        = 53
+    to_port          = 53
+    protocol         = "udp"
+    cidr_blocks  = [ 
+    
+    "10.0.101.0/24",
+    "10.0.102.0/24"
+    ]
+}
+]
 }
 
 module "elb_sg" {
@@ -290,6 +325,16 @@ resource "aws_security_group_rule" "ecs_from_elb_ingress" {
   source_security_group_id = module.elb_sg.security_group_id
   }
 
+resource "aws_vpc_endpoint" "route53_resolver" {
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.route53resolver"
+  vpc_endpoint_type = "Interface"
+  subnet_ids        = module.network.private_subnet_ids
+
+  security_group_ids = [module.endpoints_sg.security_group_id]
+
+  private_dns_enabled = true
+}
 
 resource "aws_vpc_endpoint" "ecr_api" {
   vpc_id       = module.network.vpc_id
