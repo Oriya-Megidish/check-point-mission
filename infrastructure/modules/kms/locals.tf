@@ -65,7 +65,7 @@
         "kms:ReEncrypt*",
         "kms:DescribeKey"
       ]
-      Resource = "*"
+      Resource = "*"
 }
-  ]
+]
 }
