@@ -147,7 +147,7 @@ jobs:
           registry: ${{ env.REST_SERVICE_ECR_REPO }}
 
       - name: Scan Rest service Image
-        run: docker scan ${{ env.REST_SERVICE_ECR_REPO }}:latest --accept-license --verbose
+        run: docker scan ${{ env.REST_SERVICE_ECR_REPO }}:latest  --verbose
 
       - name: Login to Amazon ECR (Sql listener)
         uses: aws-actions/amazon-ecr-login@v1
@@ -155,7 +155,7 @@ jobs:
           registry: ${{ env.SQL_LISTENER_ECR_REPO }}
 
       - name: Scan Sql listener Image
-        run: docker scan ${{ env.SQL_LISTENER_ECR_REPO }}:latest --accept-license --verbose
+        run: docker scan ${{ env.SQL_LISTENER_ECR_REPO }}:latest  --verbose
 
   deploy:
     name: Deploy Services to ECS
