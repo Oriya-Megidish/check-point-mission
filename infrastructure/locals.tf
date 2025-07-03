@@ -1,4 +1,4 @@
-locals {
+﻿locals {
   s3_bucket_name = "${var.owner}-hen-s3-bucket"
   sqs_queue_name = "${var.owner}-sqs-queue"
   cluster_name = "${var.owner}-cluster"
@@ -8,4 +8,3 @@ locals {
   sql_listener_repo_name = "sql_listener"
   sql_listener_version = "latest"
 }
-

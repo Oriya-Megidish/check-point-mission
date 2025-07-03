@@ -20,4 +20,3 @@ variable "owner" {
   description = "The owner of the resources"
   type        = string
   }
-
