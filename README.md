@@ -4,12 +4,14 @@ This project provisions and manages an ECS-based microservices architecture on A
 
 ---
 
-## Tech Stack / Environment
+## Prerequisites - Installation
 
-- **Terraform** – for Infrastructure as Code (IaC)
-- **GitHub Actions** – for CI/CD pipeline automation
+Before you start, make sure you have installed the following tools on your local machine:
+
 - **Node.js** – required for aws cli
-- **AWS CLI** – for resource interaction
+- **AWS CLI** 
+- **Terraform** 
+- **Git** 
 
 ---
 
@@ -85,6 +87,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 
 4. **Edit image settings if needed**:
 
+   **Note**: These values should match the secrets configured in Step 1.
    Go to `infrastructure/locals.tf` and update image tag/repo names:
 
    ```hcl
