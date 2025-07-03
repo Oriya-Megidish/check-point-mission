@@ -178,22 +178,14 @@ module "ecs_rest_task_sg" {
     from_port        = 53
     to_port          = 53
     protocol         = "udp"
-    cidr_blocks  = [ 
-    
-    "10.0.101.0/24",
-    "10.0.102.0/24"
-    ]
+    cidr_blocks  = ["0.0.0.0/0"]
     },
   {
     description      = "Allow outbound traffic to ECS tasks on port 443"
     from_port        = 443
     to_port          = 443
     protocol         = "tcp"
-    cidr_blocks  = [  
-    
-    "10.0.101.0/24",
-    "10.0.102.0/24"
-    ]
+    cidr_blocks  = ["0.0.0.0/0"]
     }
   ]
 }
@@ -210,22 +202,14 @@ module "ecs_sql_listener_task_sg" {
     from_port        = 53
     to_port          = 53
     protocol         = "udp"
-    cidr_blocks  = [ 
-    
-    "10.0.101.0/24",
-    "10.0.102.0/24"
-    ]
+    cidr_blocks  = ["0.0.0.0/0"]
     },
   {
     description      = "Allow outbound traffic to ECS tasks on port 443"
     from_port        = 443
     to_port          = 443
     protocol         = "tcp"
-    cidr_blocks  = [  
-    
-    "10.0.101.0/24",
-    "10.0.102.0/24"
-    ]
+    cidr_blocks  = ["0.0.0.0/0"]
     }
   ]
 }
