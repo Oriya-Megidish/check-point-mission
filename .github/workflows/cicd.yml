@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: CI/CD for ECS Microservices
 
 on:
   push:
@@ -6,17 +6,71 @@ on:
       - main
 
 env:
-  AWS_REGION: us-east-2
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_REPO_1: ${{ secrets.ECR_REPOSITORY_URI_1 }}
+  ECR_REPO_2: ${{ secrets.ECR_REPOSITORY_URI_2 }}
+  CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
+  SERVICE_NAME_1: ${{ secrets.SERVICE_NAME_1 }}
+  SERVICE_NAME_2: ${{ secrets.SERVICE_NAME_2 }}
 
 jobs:
-  build-scan-push:
+  terraform:
+    name: Terraform Apply
     runs-on: ubuntu-latest
+
     env:
-      ECR_REPO_SERVICE1: service1-repo
-      ECR_REPO_SERVICE2: service2-repo
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: v1.12.2  
+
+      - name: Terraform Init
+        run: terraform init infrastructure/
+
+      - name: Terraform Validate
+        run: terraform validate infrastructure/
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}" -chdir=./iac
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfpl
+        
+  tests:
+    name: Run Tests on Microservices
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Test Rest service 
+        run: |
+          cd services/rest_service
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pytest
+
+      - name: Test Sql listener
+        run: |
+          cd services/sql_listener
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pytest
+
+  build_and_push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: tests
+
+    steps:
+      - uses: actions/checkout@v3
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -28,49 +82,52 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-      # Build and scan service1
-      - name: Build Docker image for service1
+      - name: Build Rest service Docker Image
         run: |
-          docker build -t $ECR_REPO_SERVICE1:${{ github.sha }} ./service1
+          cd services/rest_service
+          docker build -t $ECR_REPO_1:latest .
 
-      - name: Scan service1 image with Trivy
-        uses: aquasecurity/trivy-action@master
+      - name: Push Rest service Docker Image
+        run: docker push $ECR_REPO_1:latest
+
+      - name: Build Sql listener Docker Image
+        run: |
+          cd services/sql_listener
+          docker build -t $ECR_REPO_2:latest .
+
+      - name: Push Sql listener Docker Image
+        run: docker push $ECR_REPO_2:latest
+
+  security_scan:
+    name: Scan Docker Images with Trivy
+    runs-on: ubuntu-latest
+    needs: build_and_push
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Scan Rest service Image
+        uses: aquasecurity/trivy-action@v0.14.0
         with:
-          image-ref: $ECR_REPO_SERVICE1:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: false
+          image-ref: ${{ env.ECR_REPO_1 }}:latest
+          format: table
+          ignore-unfixed: true
 
-      # Build and scan service2
-      - name: Build Docker image for service2
-        run: |
-          docker build -t $ECR_REPO_SERVICE2:${{ github.sha }} ./service2
-
-      - name: Scan service2 image with Trivy
-        uses: aquasecurity/trivy-action@master
+      - name: Scan Sql listener Image
+        uses: aquasecurity/trivy-action@v0.14.0
         with:
-          image-ref: $ECR_REPO_SERVICE2:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: false
-
-      # Tag and push service1
-      - name: Tag and push service1 image to ECR
-        run: |
-          ECR_URI_1=$(aws ecr describe-repositories --repository-names $ECR_REPO_SERVICE1 --query "repositories[0].repositoryUri" --output text)
-          docker tag $ECR_REPO_SERVICE1:${{ github.sha }} $ECR_URI_1:${{ github.sha }}
-          docker push $ECR_URI_1:${{ github.sha }}
-          echo "SERVICE1_IMAGE=$ECR_URI_1:${{ github.sha }}" >> $GITHUB_ENV
-
-      # Tag and push service2
-      - name: Tag and push service2 image to ECR
-        run: |
-          ECR_URI_2=$(aws ecr describe-repositories --repository-names $ECR_REPO_SERVICE2 --query "repositories[0].repositoryUri" --output text)
-          docker tag $ECR_REPO_SERVICE2:${{ github.sha }} $ECR_URI_2:${{ github.sha }}
-          docker push $ECR_URI_2:${{ github.sha }}
-          echo "SERVICE2_IMAGE=$ECR_URI_2:${{ github.sha }}" >> $GITHUB_ENV
+          image-ref: ${{ env.ECR_REPO_2 }}:latest
+          format: table
+          ignore-unfixed: true
 
   deploy:
-    needs: build-scan-push
+    name: Deploy Services to ECS
     runs-on: ubuntu-latest
+    needs: security_scan
+
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -79,14 +136,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Update ECS service for service1
+      - name: Deploy Rest service
         run: |
-          aws ecs update-service --cluster your-cluster-name --service service1-service-name \
-            --force-new-deployment \
-            --region $AWS_REGION
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME_1 --force-new-deployment
 
-      - name: Update ECS service for service2
+      - name: Deploy Sql listener
         run: |
-          aws ecs update-service --cluster your-cluster-name --service service2-service-name \
-            --force-new-deployment \
-            --region $AWS_REGION
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME_2 --force-new-deployment
