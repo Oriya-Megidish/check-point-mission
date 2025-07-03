@@ -332,6 +332,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   vpc_endpoint_type = "Interface"
   subnet_ids   = module.network.private_subnet_ids
   security_group_ids = [module.endpoints_sg.security_group_id]
+  private_dns_enabled = true
 }
 
 resource "aws_vpc_endpoint" "ecr_dkr" {
@@ -340,6 +341,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   vpc_endpoint_type = "Interface"
   subnet_ids   = module.network.private_subnet_ids
   security_group_ids = [module.endpoints_sg.security_group_id]
+  private_dns_enabled = true
 }
 
 # Gateway endpoint for S3 (for ECS service)
@@ -357,6 +359,7 @@ resource "aws_vpc_endpoint" "logs" {
   vpc_endpoint_type = "Interface"
   subnet_ids        = module.network.private_subnet_ids
   security_group_ids = [module.endpoints_sg.security_group_id]
+  private_dns_enabled = true
   }
 
 # Interface endpoint for SSM
@@ -366,6 +369,7 @@ resource "aws_vpc_endpoint" "ssm" {
   vpc_endpoint_type = "Interface"
   subnet_ids        = module.network.private_subnet_ids
   security_group_ids = [module.endpoints_sg.security_group_id]
+  private_dns_enabled = true
 }
 
 # Interface endpoint for KMS
@@ -375,6 +379,7 @@ resource "aws_vpc_endpoint" "kms" {
   vpc_endpoint_type = "Interface"
   subnet_ids        = module.network.private_subnet_ids
   security_group_ids = [module.endpoints_sg.security_group_id]
+  private_dns_enabled = true
 }
 
 
