@@ -49,7 +49,7 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infrastructure/
-        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}"
+        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="region=${{ secrets.AWS_REGION }}" -var="admin_role_arn=${{ secrets.ADMIN_ROLE_ARN }}" -var="token_value=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}"
 
       - name: Terraform Apply
         working-directory: infrastructure/
