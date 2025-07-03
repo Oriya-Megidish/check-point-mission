@@ -409,7 +409,7 @@ module "my_alb" {
   execution_role_arn = module.ecs_execution_role.role_arn
   task_role_arn      = module.ecs_rest_service_task_role.role_arn
   container_name     = "rest-app"
-  container_image    = "${var.account_id}.dkr.${var.aws_region}.amazonaws.com/${local.rest_repo_name}:${local.rest_version}"
+  container_image    = "${var.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.rest_repo_name}:${local.rest_version}"
   container_port     = 5000
   cpu                = 256
   memory             = 512
@@ -432,7 +432,7 @@ module "my_alb" {
   execution_role_arn = module.ecs_execution_role.role_arn
   task_role_arn      = module.ecs_sql_listener_task_role.role_arn
   container_name     = "sql-listener"
-  container_image    = "${var.account_id}.dkr.${var.aws_region}.amazonaws.com/${local.sql_listener_repo_name}:${local.sql_listener_version}"
+  container_image    = "${var.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.sql_listener_repo_name}:${local.sql_listener_version}"
   container_port     = 9000
   cpu                = 256
   memory             = 512
