@@ -1,12 +1,22 @@
-module "pre_ecs_rest_service_task_role" {
-  source             = "./modules/iam_role" 
-  role_name          = "ecs-rest-service-task-role"
-  assume_role_service = "ecs-tasks.amazonaws.com"  
+data "aws_iam_policy_document" "assume_role_policy" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["ecs-tasks.amazonaws.com"]
+    }
+    actions = ["sts:AssumeRole"]
+  }
 }
-module "pre_ecs_sql_listener_task_role" {
-  source             = "./modules/iam_role" 
-  role_name          = "ecs-sql-listener-task-role"
-  assume_role_service = "ecs-tasks.amazonaws.com"  
+
+resource "pre_ecs_rest_service_task_role" "rest_role" {
+  name               = "ecs-rest-service-task-role"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
+}
+
+resource "pre_ecs_sql_listener_task_role" "listener_role" {
+  name               = "ecs-sql-listener-task-role"
+  assume_role_policy = data.aws_iam_policy_document.assume_role_policy.json
 }
 
 module "s3_kms" {
