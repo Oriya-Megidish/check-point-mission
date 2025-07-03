@@ -133,30 +133,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Login to Amazon ECR (Rest service)
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry: ${{ env.REST_SERVICE_ECR_REPO }}
 
       - name: Scan Rest service Image
-        uses: aquasecurity/trivy-action@v0.15.0
+        run: docker scan ${{ env.REST_SERVICE_ECR_REPO }}:latest --accept-license --verbose
+
+      - name: Login to Amazon ECR (Sql listener)
+        uses: aws-actions/amazon-ecr-login@v1
         with:
-          image-ref: ${{ env.REST_SERVICE_ECR_REPO }}:latest
-          format: table
-          ignore-unfixed: true
+          registry: ${{ env.SQL_LISTENER_ECR_REPO }}
 
       - name: Scan Sql listener Image
-        uses: aquasecurity/trivy-action@v0.15.0
-        with:
-          image-ref: ${{ env.SQL_LISTENER_ECR_REPO }}:latest
-          format: table
-          ignore-unfixed: true
+        run: docker scan ${{ env.SQL_LISTENER_ECR_REPO }}:latest --accept-license --verbose
 
   deploy:
     name: Deploy Services to ECS
