@@ -137,5 +137,45 @@ Before triggering the pipeline, ensure that these secrets are configured in your
   terraform plan 
   terraform apply 
   ```
+After the pipeline runs and completes successtully, you can access the application sending POST request using curl:
+
+curl -X POST http://localhost:5000/  -H "Content-Type: application/json"  -d @message.json 
+where the message.json should conain a valid JSON payload in the folloeing format:
+"{
+"data": {
+"email_subject": "Happy new year!"
+"email_sender": "John Doe",
+"email_timestream": "1693561101"
+"email_content": "Just want to say... Happy new year!!!"
+}
+"token": "$DJISA<$#45ex3RtYr"
+}
+
+### Important Notes
+- The 'token' field must match the value vou confidured
+- 'email_timestream' must be in *Unix time format*
+(seconds since epoch).
+
+> if the request is valid and accepted the response will be:
+> {"MessageId":"df89f5fb-ca1f-4853-ad80-ef5378cbedb4","message":"Payload forwarded to SQS"}
+---
+### Handling Time Errors
+If you receive an error stating that 'email_timestream' is outside the allowed 5-minute window, you can retrieve the
+current Unix timestamp from the running task by
+executing:
+"'bash
+curl -X GET <ALB_URL>/time
+Use the timestamp returned in the 'email_timestream'
+field of your payload.
+---
+
+- The *SQL Listener service* (the second ECS service)
+will:
+- Listen to the same SQS queue.
+- Retrieve the message.
+- Upload the message to the S3 bucket created via
+Terraform.
+- Delete the message from the queue.
+
 
 - This CI/CD setup uses Terraform caching to speed up provider/module downloads and Docker layer caching for faster builds.
