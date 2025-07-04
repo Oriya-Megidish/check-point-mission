@@ -55,7 +55,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 
      ```hcl
      provider "aws" {
-       region = "us-east-1"
+       region = "us-east-2"
      }
      ```
 
@@ -66,7 +66,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
        backend "s3" {
          bucket         = "my-tf-state-bucket"
          key            = "infrastructure/terraform.tfstate"
-         region         = "us-east-1"
+         region         = "us-east-2"
          dynamodb_table = "my-lock-table"
          encrypt        = true
        }
