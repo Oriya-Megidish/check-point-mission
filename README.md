@@ -126,7 +126,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 ---
 
 
-## 🧪 Notes
+## Notes
 
 You can test Terraform changes locally via:
 
