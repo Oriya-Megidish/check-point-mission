@@ -55,7 +55,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 
      ```hcl
      provider "aws" {
-       region = var.aws_region
+       region = "us-east-1"
      }
      ```
 
