@@ -49,7 +49,7 @@ jobs:
 
       - name: Terraform Init
         working-directory: infrastructure/
-        run: terraform init 
+        run: terraform init -reconfigure
 
       - name: Terraform Validate
         working-directory: infrastructure/

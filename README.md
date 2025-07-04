@@ -55,7 +55,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 
      ```hcl
      provider "aws" {
-       region = var.aws_region
+       region = "us-east-2"
      }
      ```
 
@@ -66,7 +66,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
        backend "s3" {
          bucket         = "my-tf-state-bucket"
          key            = "infrastructure/terraform.tfstate"
-         region         = "us-east-1"
+         region         = "us-east-2"
          dynamodb_table = "my-lock-table"
          encrypt        = true
        }
@@ -128,14 +128,77 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 
 ## Notes
 
-- You can test Terraform changes locally via:
+You can test Terraform changes locally via:
 
-  ```bash
-  cd infrastructure/
-  terraform init
-  terraform validate
-  terraform plan 
-  terraform apply 
-  ```
+```bash
+cd infrastructure/
+terraform init
+terraform validate
+terraform plan 
+terraform apply 
+```
+
+---
+
+## Accessing the Application
+
+After the pipeline runs and completes successfully, you can access the application by sending a POST request using curl:
+
+```bash
+curl -X POST http://<ALB_DNS_NAME>:5000/ \
+     -H "Content-Type: application/json" \
+     -d @message.json
+```
+
+Where the message.json file should contain a valid JSON payload in the following format:
+
+```json
+{
+  "data": {
+    "email_subject": "Happy new year!",
+    "email_sender": "John Doe",
+    "email_timestream": "1693561101",
+    "email_content": "Just want to say... Happy new year!!!"
+  },
+  "token": "$DJISA<$#45ex3RtYr"
+}
+```
+
+### Important Notes
+
+- The token field must match the value you configured in SSM Parameter Store during deployment.
+- The email_timestream field must be in *Unix time format* (i.e. seconds since epoch).
+
+If the request is valid and accepted, the response will be:
+
+```json
+{
+  "MessageId": "df89f5fb-ca1f-4853-ad80-ef5378cbedb4",
+  "message": "Payload forwarded to SQS"
+}
+```
+
+---
+
+### Handling Time Errors
+
+If you receive an error stating that 'email_timestream' is outside the allowed 5-minute window, you can retrieve the current Unix timestamp from the running ECS task:
+
+```bash
+curl -X GET http://<ALB_DNS_NAME>/time
+```
+
+Use the timestamp returned in the email_timestream field of your payload.
+
+---
+
+- The *SQL Listener service* (the second ECS service)
+will:
+- Listen to the same SQS queue.
+- Retrieve the message.
+- Upload the message to the S3 bucket created via
+Terraform.
+- Delete the message from the queue.
+
 
 - This CI/CD setup uses Terraform caching to speed up provider/module downloads and Docker layer caching for faster builds.
