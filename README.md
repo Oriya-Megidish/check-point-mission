@@ -144,15 +144,15 @@ terraform apply
 
 After the pipeline runs and completes successfully, you can access the application by sending a POST request using curl:
 
-bash
+```bash
 curl -X POST http://<ALB_DNS_NAME>:5000/ \
      -H "Content-Type: application/json" \
      -d @message.json
-
+```
 
 Where the message.json file should contain a valid JSON payload in the following format:
 
-json
+```json
 {
   "data": {
     "email_subject": "Happy new year!",
@@ -162,7 +162,7 @@ json
   },
   "token": "$DJISA<$#45ex3RtYr"
 }
-
+```
 
 ### Important Notes
 
@@ -171,12 +171,12 @@ json
 
 If the request is valid and accepted, the response will be:
 
-json
+```json
 {
   "MessageId": "df89f5fb-ca1f-4853-ad80-ef5378cbedb4",
   "message": "Payload forwarded to SQS"
 }
-
+```
 
 ---
 
@@ -184,9 +184,9 @@ json
 
 If you receive an error stating that 'email_timestream' is outside the allowed 5-minute window, you can retrieve the current Unix timestamp from the running ECS task:
 
-bash
+```bash
 curl -X GET http://<ALB_DNS_NAME>/time
-
+```
 
 Use the timestamp returned in the email_timestream field of your payload.
 
