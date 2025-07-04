@@ -126,47 +126,70 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 ---
 
 
-## Notes
+## 🧪 Notes
 
-- You can test Terraform changes locally via:
+You can test Terraform changes locally via:
 
-  ```bash
-  cd infrastructure/
-  terraform init
-  terraform validate
-  terraform plan 
-  terraform apply 
-  ```
-After the pipeline runs and completes successtully, you can access the application sending POST request using curl:
+bash
+cd infrastructure/
+terraform init
+terraform validate
+terraform plan 
+terraform apply 
 
-curl -X POST http://localhost:5000/  -H "Content-Type: application/json"  -d @message.json 
-where the message.json should conain a valid JSON payload in the folloeing format:
-"{
-"data": {
-"email_subject": "Happy new year!"
-"email_sender": "John Doe",
-"email_timestream": "1693561101"
-"email_content": "Just want to say... Happy new year!!!"
+
+---
+
+## Accessing the Application
+
+After the pipeline runs and completes successfully, you can access the application by sending a POST request using curl:
+
+bash
+curl -X POST http://<ALB_DNS_NAME>:5000/ \
+     -H "Content-Type: application/json" \
+     -d @message.json
+
+
+Where the message.json file should contain a valid JSON payload in the following format:
+
+json
+{
+  "data": {
+    "email_subject": "Happy new year!",
+    "email_sender": "John Doe",
+    "email_timestream": "1693561101",
+    "email_content": "Just want to say... Happy new year!!!"
+  },
+  "token": "$DJISA<$#45ex3RtYr"
 }
-"token": "$DJISA<$#45ex3RtYr"
-}
+
 
 ### Important Notes
-- The 'token' field must match the value vou confidured
-- 'email_timestream' must be in *Unix time format*
-(seconds since epoch).
 
-> if the request is valid and accepted the response will be:
-> {"MessageId":"df89f5fb-ca1f-4853-ad80-ef5378cbedb4","message":"Payload forwarded to SQS"}
+- The token field must match the value you configured in SSM Parameter Store during deployment.
+- The email_timestream field must be in *Unix time format* (i.e. seconds since epoch).
+
+If the request is valid and accepted, the response will be:
+
+json
+{
+  "MessageId": "df89f5fb-ca1f-4853-ad80-ef5378cbedb4",
+  "message": "Payload forwarded to SQS"
+}
+
+
 ---
+
 ### Handling Time Errors
-If you receive an error stating that 'email_timestream' is outside the allowed 5-minute window, you can retrieve the
-current Unix timestamp from the running task by
-executing:
-"'bash
-curl -X GET <ALB_URL>/time
-Use the timestamp returned in the 'email_timestream'
-field of your payload.
+
+If you receive an error stating that 'email_timestream' is outside the allowed 5-minute window, you can retrieve the current Unix timestamp from the running ECS task:
+
+bash
+curl -X GET http://<ALB_DNS_NAME>/time
+
+
+Use the timestamp returned in the email_timestream field of your payload.
+
 ---
 
 - The *SQL Listener service* (the second ECS service)
