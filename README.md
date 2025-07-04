@@ -130,13 +130,13 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 
 You can test Terraform changes locally via:
 
-bash
+```bash
 cd infrastructure/
 terraform init
 terraform validate
 terraform plan 
 terraform apply 
-
+```
 
 ---
 
