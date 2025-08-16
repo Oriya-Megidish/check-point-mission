@@ -9,7 +9,6 @@
     "s3:DeleteObject"
   ]
 
-  }
 
   roles_statements = [
     for role_arn, permissions in var.role_permissions : {
@@ -27,9 +26,4 @@
         }
     }
 ]
-
-  combined_statements = concat(
-    [local.admin_statement],
-    local.roles_statements
-  )
 }
