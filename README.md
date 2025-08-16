@@ -75,7 +75,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
      }
      ```
 
-   > **Note**: You must use the same S3 bucket and DynamoDB table names as configure in step 1`:
+   > **Note**: You must use the same S3 bucket, DynamoDB table and aws region as configure in step 1`:
    >
 
 4. **Edit image settings if needed**:
