@@ -29,7 +29,6 @@ module "s3_kms" {
   key_alias       = "alias/s3-key"
   description     = "KMS key for S3 encryption"
   bucket_name     = local.s3_bucket_name
-  admin_role_arn  = var.admin_role_arn
   extra_key_users = [aws_iam_role.pre_ecs_rest_service_task_role.arn, aws_iam_role.pre_ecs_sql_listener_task_role.arn]
 }
 
@@ -38,7 +37,6 @@ module "sqs_kms" {
   key_alias       = "alias/sqs-key"
   description     = "KMS key for SQS encryption"
   sqs_queue_arn   = "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}"
-  admin_role_arn  = var.admin_role_arn
   extra_key_users = [aws_iam_role.pre_ecs_rest_service_task_role.arn, aws_iam_role.pre_ecs_sql_listener_task_role.arn]
 }
 
@@ -157,7 +155,6 @@ module "oriya_sqs_queue" {
   dlq_name                  = "${var.owner}-queue-dlq"
   kms_key_arn               = module.sqs_kms.key_arn
 
-  admin_role_arn = var.admin_role_arn
 
   role_permissions = {
     (aws_iam_role.pre_ecs_rest_service_task_role.arn) = ["send"]
@@ -171,8 +168,6 @@ module "oriya_s3_bucket" {
 
   bucket_name    = local.s3_bucket_name
   kms_key_arn     = module.s3_kms.key_arn
-  admin_role_arn = var.admin_role_arn
-
   role_permissions = {
     (aws_iam_role.pre_ecs_sql_listener_task_role.arn) = ["write"]
     }
