@@ -13,15 +13,6 @@
     "sqs:DeleteMessage"
   ]
 
-  admin_statement = {
-    Effect = "Allow"
-    Action = [
-      "sqs:*"
-    ]
-    Resource  = aws_sqs_queue.main.arn
-    Principal = {
-      AWS = var.admin_role_arn
-    }
   }
 
   role_statements = [
@@ -39,8 +30,4 @@
     }
   ]
 
-  combined_statements = concat(
-    [local.admin_statement],
-    local.role_statements
-  )
 }
