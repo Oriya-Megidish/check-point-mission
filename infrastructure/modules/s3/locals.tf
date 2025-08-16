@@ -9,16 +9,6 @@
     "s3:DeleteObject"
   ]
 
-  admin_statement = {
-    Effect    = "Allow"
-    Action    = ["s3:*"]
-    Resource  = [
-      aws_s3_bucket.this.arn,
-      "${aws_s3_bucket.this.arn}/*"
-    ]
-    Principal = {
-      AWS = var.admin_role_arn
-    }
   }
 
   roles_statements = [
