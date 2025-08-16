@@ -5,51 +5,55 @@ on:
     branches:
       - main
 
+# Environment variables ברמה העליונה
 env:
   AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   REST_SERVICE_ECR_REPO: ${{ secrets.ECR_REST_SERVICE_REPO_URI }}
   SQL_LISTENER_ECR_REPO: ${{ secrets.ECR_SQL_LISTENER_REPO_URI }}
   CLUSTER_NAME: ${{ secrets.OWNER }}-cluster
   REST_SERVICE_NAME: ${{ secrets.REST_SERVICE_NAME }}
   SQL_LISTENER_SERVICE_NAME: ${{ secrets.SQL_LISTENER_SERVICE_NAME }}
-  
+
 
 jobs:
   terraform:
     name: Terraform Apply
     runs-on: ubuntu-latest
-
     env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
+      TF_VAR_account_id: ${{ secrets.ACCOUNT_ID }}
+      TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
+      TF_VAR_admin_role_arn: ${{ secrets.ADMIN_ROLE_ARN }}
+      TF_VAR_token_parameter: ${{ secrets.TOKEN_VALUE }}
+      TF_VAR_owner: ${{ secrets.OWNER }}
 
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: v1.4.6  
-          
+
       - name: Cache Terraform providers and modules
         uses: actions/cache@v3
         with:
-         path: infrastructure/.terraform
-         key: ${{ runner.os }}-terraform-${{ hashFiles('infrastructure/**/*.tf') }}
-         restore-keys: |
-           ${{ runner.os }}-terraform-
+          path: infrastructure/.terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('infrastructure/**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
 
       - name: Terraform Init
         working-directory: infrastructure/
-        run: terraform init
+        run: terraform init -input=false
 
       - name: Terraform Validate
         working-directory: infrastructure/
@@ -57,12 +61,12 @@ jobs:
 
       - name: Terraform Plan
         working-directory: infrastructure/
-        run: terraform plan -out=tfplan -var="account_id=${{ secrets.ACCOUNT_ID }}" -var="aws_region=${{ secrets.AWS_REGION }}" -var="admin_role_arn=${{ secrets.ADMIN_ROLE_ARN }}" -var="token_parameter=${{ secrets.TOKEN_VALUE }}" -var="owner=${{ secrets.OWNER }}"
+        run: terraform plan -out=tfplan -input=false -lock=true
 
       - name: Terraform Apply
         working-directory: infrastructure/
         run: terraform apply -auto-approve tfplan
-        
+
   tests:
     name: Run Tests on Microservices
     runs-on: ubuntu-latest
@@ -70,7 +74,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Cache pip
         uses: actions/cache@v4
         with:
@@ -104,36 +108,24 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build Rest service Docker Image
+      - name: Build and Push Rest service Docker Image
         run: |
           cd services/rest_service
           docker build -t $REST_SERVICE_ECR_REPO:latest .
-        env:
-          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
+          docker push $REST_SERVICE_ECR_REPO:latest
 
-      - name: Push Rest service Docker Image
-        run: docker push $REST_SERVICE_ECR_REPO:latest
-        env:
-          REST_SERVICE_ECR_REPO: ${{ env.REST_SERVICE_ECR_REPO }}
-
-      - name: Build Sql listener Docker Image
+      - name: Build and Push Sql listener Docker Image
         run: |
           cd services/sql_listener
           docker build -t $SQL_LISTENER_ECR_REPO:latest .
-        env:
-          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
-
-      - name: Push Sql listener Docker Image
-        run: docker push $SQL_LISTENER_ECR_REPO:latest
-        env:
-          SQL_LISTENER_ECR_REPO: ${{ env.SQL_LISTENER_ECR_REPO }}
+          docker push $SQL_LISTENER_ECR_REPO:latest
 
   deploy:
     name: Deploy Services to ECS
@@ -144,20 +136,14 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy Rest service
         run: |
           aws ecs update-service --cluster $CLUSTER_NAME --service $REST_SERVICE_NAME --force-new-deployment
-        env:
-          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
-          REST_SERVICE_NAME: ${{ env.REST_SERVICE_NAME }}
-          
+
       - name: Deploy Sql listener
         run: |
           aws ecs update-service --cluster $CLUSTER_NAME --service $SQL_LISTENER_SERVICE_NAME --force-new-deployment
-        env:
-          CLUSTER_NAME: ${{ env.CLUSTER_NAME }}
-          SQL_LISTENER_SERVICE_NAME: ${{ env.SQL_LISTENER_SERVICE_NAME }}
