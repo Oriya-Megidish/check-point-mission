@@ -5,6 +5,5 @@
     region = "us-east-2"                   
     dynamodb_table = "oriya-terraform-lock-table"        
     encrypt = true
-    profile = "oriya"
     }
 }
