@@ -8,11 +8,6 @@ variable "aws_region" {
   type = string
   }
 
-variable "admin_role_arn" {
-  description = "ARN of admin iam role"
-  type = string
-  }
-
 variable "token_parameter" {
   description = "The token rest service compare to"
   type = string
