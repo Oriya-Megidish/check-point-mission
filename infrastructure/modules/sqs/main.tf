@@ -19,7 +19,7 @@ resource "aws_sqs_queue" "main" {
 
 data "aws_iam_policy_document" "queue_policy" {
   dynamic "statement" {
-    for_each = local.combined_statements
+    for_each = local.role_statements
     content {
       effect    = statement.value.Effect
       actions   = statement.value.Action
