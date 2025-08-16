@@ -1,15 +1,4 @@
 ﻿locals {
-  admin_statement = [
-    {
-      Sid      = "AllowAdminAccess"
-      Effect   = "Allow"
-      Principal = {
-        AWS = var.admin_role_arn
-      }
-      Action   = "kms:*"
-      Resource = "*"
-    }
-  ]
 
   s3_statement = var.bucket_name != null ? [
     {
