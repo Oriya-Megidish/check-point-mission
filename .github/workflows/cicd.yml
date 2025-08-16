@@ -53,6 +53,7 @@ jobs:
       TF_VAR_aws_region: ${{ secrets.AWS_REGION }}
       TF_VAR_token_parameter: ${{ secrets.TOKEN_VALUE }}
       TF_VAR_owner: ${{ secrets.OWNER }}
+      TF_VAR_kms_admin_role_arn: ${{secrets.KMS_ADMIN_ROLE_ARN }}
 
     steps:
       - uses: actions/checkout@v3
