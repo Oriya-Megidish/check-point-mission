@@ -1,4 +1,15 @@
-﻿locals {
+locals {
+  admin_statement = [
+    {
+      Sid      = "AllowAdminAccess"
+      Effect   = "Allow"
+      Principal = {
+        AWS = var.admin_role_arn
+      }
+      Action   = "kms:*"
+      Resource = "*"
+    }
+  ]
 
   s3_statement = var.bucket_name != null ? [
     {
@@ -39,22 +50,4 @@
       }
     }
   ] : []
-
-  extra_users_statements = [
-    for arn in var.extra_key_users : {
-      Sid    = "AllowRolePermission-${replace(arn, "[:/.]", "-")}"
-      Effect = "Allow"
-      Principal = {
-        AWS = arn
-      }
-      Action = [
-        "kms:Decrypt",
-        "kms:Encrypt",
-        "kms:GenerateDataKey*",
-        "kms:ReEncrypt*",
-        "kms:DescribeKey"
-      ]
-      Resource = "*"
-}
-]
 }
