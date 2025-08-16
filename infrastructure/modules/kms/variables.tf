@@ -6,7 +6,7 @@ variable "description" {
   type = string
 }
 
-variable "admin_role_arn" {
+variable "kms_admin_role_arn" {
   type = string
 }
 
