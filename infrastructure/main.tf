@@ -28,6 +28,7 @@ module "s3_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/s3-key"
   description     = "KMS key for S3 encryption"
+  kms_admin_role_arn = var.kms_admin_role_arn
   bucket_name     = local.s3_bucket_name
   extra_key_users = [aws_iam_role.pre_ecs_rest_service_task_role.arn, aws_iam_role.pre_ecs_sql_listener_task_role.arn]
 }
@@ -36,6 +37,7 @@ module "sqs_kms" {
   source          = "./modules/kms"
   key_alias       = "alias/sqs-key"
   description     = "KMS key for SQS encryption"
+  kms_admin_role_arn = var.kms_admin_role_arn
   sqs_queue_arn   = "arn:aws:sqs:${var.aws_region}:${var.account_id}:${local.sqs_queue_name}"
   extra_key_users = [aws_iam_role.pre_ecs_rest_service_task_role.arn, aws_iam_role.pre_ecs_sql_listener_task_role.arn]
 }
