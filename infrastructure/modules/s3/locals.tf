@@ -10,7 +10,7 @@
   ]
 
 
-  roles_statements = [
+  role_statements = [
     for role_arn, permissions in var.role_permissions : {
       Effect    = "Allow"
       Action    = concat(
