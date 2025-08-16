@@ -5,6 +5,7 @@
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = concat(
+      local.admin_statement,
       local.s3_statement,
       local.sqs_statement,
       local.extra_users_statements
