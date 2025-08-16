@@ -17,7 +17,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
 
 data "aws_iam_policy_document" "bucket_policy" {
   dynamic "statement" {
-    for_each = local.combined_statements
+    for_each = local.role_statements
     content {
       effect = statement.value.Effect
 
