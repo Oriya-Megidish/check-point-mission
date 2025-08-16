@@ -13,7 +13,6 @@
     "sqs:DeleteMessage"
   ]
 
-  }
 
   role_statements = [
     for role_arn, permissions in var.role_permissions : {
