@@ -6,6 +6,10 @@ variable "description" {
   type = string
 }
 
+variable "admin_role_arn" {
+  type = string
+}
+
 variable "bucket_name" {
   type = string
   default = null
