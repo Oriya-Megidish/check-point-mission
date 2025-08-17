@@ -22,7 +22,7 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
 | `ACCOUNT_ID` | Your AWS account ID | `123456789012` |
-| `ADMIN_ROLE_ARN` | ARN of the role with administrative permissions | `arn:aws:iam::123456789012:role/Admin` |
+| `KMS_ADMIN_ROLE_ARN ` | ARN of the role with permissions to manage kms keys| `arn:aws:iam::123456789012:role/kms_admin` |
 | `AWS_ACCESS_KEY_ID` | IAM user access key | `AKIA...` |
 | `AWS_SECRET_ACCESS_KEY` | IAM user secret key | `wJalrXUtnFEMI/K7MDENG...` |
 | `AWS_REGION` | AWS region | `us-east-2` |
@@ -33,6 +33,8 @@ Before triggering the pipeline, ensure that these secrets are configured in your
 | `OWNER` | Project owner tag for naming resources | `oriya` |
 | `REST_SERVICE_NAME` | ECS service name for REST app | `rest-service` |
 | `SQL_LISTENER_SERVICE_NAME` | ECS service name for SQL Listener | `sql-listener` |
+| `TF_STATE_BUCKET` | Bucket for statefile | `terraform-state-bucket-oriya` |
+| `TF_STATE_LOCK_TABLE` |DynamoDB for locking statefile | `terraform-lock-table-oriya` |
 
 ---
 
@@ -73,17 +75,8 @@ Before triggering the pipeline, ensure that these secrets are configured in your
      }
      ```
 
-   > **Note**: You must create the S3 bucket and DynamoDB table manually before running `terraform init`:
+   > **Note**: You must use the same S3 bucket, DynamoDB table and aws region as configure in step 1`:
    >
-   > ```bash
-   > aws s3api create-bucket --bucket my-tf-state-bucket --region us-east-2
-   >
-   > aws dynamodb create-table \
-   >   --table-name my-lock-table \
-   >   --attribute-definitions AttributeName=LockID,AttributeType=S \
-   >   --key-schema AttributeName=LockID,KeyType=HASH \
-   >   --billing-mode PAY_PER_REQUEST
-   > ```
 
 4. **Edit image settings if needed**:
 

@@ -1,5 +1,5 @@
 ﻿locals {
-  s3_bucket_name = "${var.owner}-hen-s3-bucket"
+  s3_bucket_name = "${var.owner}-hen-s3-bucket-1"
   sqs_queue_name = "${var.owner}-sqs-queue"
   cluster_name = "${var.owner}-cluster"
   parameter_path = "/${var.owner}/token"

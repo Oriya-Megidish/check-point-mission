@@ -8,10 +8,9 @@ variable "aws_region" {
   type = string
   }
 
-variable "admin_role_arn" {
-  description = "ARN of admin iam role"
+variable "kms_admin_role_arn" {
   type = string
-  }
+}
 
 variable "token_parameter" {
   description = "The token rest service compare to"
